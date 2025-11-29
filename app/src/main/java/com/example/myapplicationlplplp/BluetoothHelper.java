@@ -17,26 +17,23 @@ public class BluetoothHelper {
 
     private BluetoothSocket socket;
     private OutputStream out;
-
+    public BluetoothHelper(){
+        try {
+            var bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
+            var boundedDevices = bluetoothAdapter.getBondedDevices();
+            var device = boundedDevices.stream().filter(d -> "JDY-31-SPP".equals(d.getName())).findFirst().orElseThrow();
+            var bluetoothDevice = bluetoothAdapter.getRemoteDevice(device.getAddress());
+            socket = bluetoothDevice.createRfcommSocketToServiceRecord(SPP_UUID);
+        } catch(Exception e) {
+            throw new IllegalStateException(e);
+        }
+    }
     /**
      * Opens an RFCOMM socket to the first bonded HC-05/HC-06 module.
      * Call from a background thread to avoid Network-on-Main-Thread exception.
      */
     public boolean connect(Context ctx) throws IOException {
         try {
-        BluetoothAdapter bt = BluetoothAdapter.getDefaultAdapter();
-        if (bt == null) throw new IOException("No Bluetooth adapter");
-
-        BluetoothDevice target = null;
-        for (BluetoothDevice d : bt.getBondedDevices()) {
-            String name = d.getName();
-            if (name != null && (name.contains("HC-05") || name.contains("HC-06"))) {
-                target = d;
-                break;
-            }
-        }
-        if (target == null) throw new IOException("HC-05/06 not paired");
-
         socket.connect();          // blocks ~1 s
         out  = socket.getOutputStream();
         return true;
@@ -47,7 +44,11 @@ public class BluetoothHelper {
 
     /** Send single byte without blocking UI thread. */
     public void send(char c) throws IOException {
-        if (out != null) out.write(c);
+        if (out != null) {
+            out.write(c);
+            out.write('\n');
+            out.write('\r');
+        }
     }
 
     /** Clean close. */

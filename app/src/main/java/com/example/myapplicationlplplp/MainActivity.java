@@ -5,76 +5,37 @@ import android.app.PendingIntent;
 import android.content.Intent;
 import android.os.Build;
 import android.os.Bundle;
+import android.util.Log;
 import android.view.View;
 import android.widget.TimePicker;
 import android.widget.Toast;
 import android.widget.ToggleButton;
-import java.io.IOException;
-import android.bluetooth.BluetoothAdapter;
 
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.app.ActivityCompat;
+import androidx.core.content.ContextCompat;
 
-import java.util.Calendar;
-import android.provider.Settings;
-import android.net.Uri;
 import android.Manifest;
 import android.content.pm.PackageManager;
-import android.util.Log;
+import android.net.Uri;
+import android.provider.Settings;
 
+import java.io.IOException;
+import java.util.Calendar;
 
 public class MainActivity extends AppCompatActivity {
 
     private TimePicker timePicker;
     private AlarmManager alarmManager;
     private PendingIntent pendingIntent;
-    private BluetoothHelper bt;
-    private static final int REQ_BT_PERM = 101;   // arbitrary code
-    private boolean btConnected = false;
-
-
-    private void ensureBluetoothPermission() {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (checkSelfPermission(Manifest.permission.BLUETOOTH_CONNECT)
-                    != PackageManager.PERMISSION_GRANTED) {
-
-                requestPermissions(new String[]{Manifest.permission.BLUETOOTH_CONNECT},
-                        REQ_BT_PERM);
-                return;   // don’t start BT until user grants
-            }
-        }
-        // permission already OK → start your connect thread here
-        startBluetoothThread();
-    }
-
-    private void startBluetoothThread() {
-        new Thread(() -> {
-            try {
-                boolean ok = bt.connect(MainActivity.this);
-                if (ok) {
-                    btConnected = true;
-                    runOnUiThread(() ->
-                            Toast.makeText(MainActivity.this,
-                                    "Arduino connected", Toast.LENGTH_SHORT).show());
-                }
-            } catch (IOException e) {
-                // *** SURFACE THE REAL REASON ***
-                Log.e("BT", "Connect failed", e);
-                runOnUiThread(() ->
-                        Toast.makeText(MainActivity.this,
-                                "Connect failed: " + e.getMessage(),
-                                Toast.LENGTH_LONG).show());
-            }
-        }).start();
-    }
-
 
     @Override
     protected void onResume() {
         super.onResume();
 
-        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.S) {
-            AlarmManager alarmManager = (AlarmManager)
-                    getSystemService(ALARM_SERVICE);
+        // Разрешение на точные будильники (Android 12+)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
             if (!alarmManager.canScheduleExactAlarms()) {
                 Intent intent = new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM,
                         Uri.parse("package:" + getPackageName()));
@@ -89,8 +50,22 @@ public class MainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_main);
         timePicker = findViewById(R.id.timePicker);
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
-        bt = new BluetoothHelper();
 
+        // Разрешения Bluetooth (Android 12+)
+        if (ContextCompat.checkSelfPermission(
+                getApplicationContext(), Manifest.permission.BLUETOOTH_SCAN)
+                != PackageManager.PERMISSION_GRANTED) {
+
+            ActivityCompat.requestPermissions(
+                    this,
+                    new String[]{
+                            Manifest.permission.BLUETOOTH_SCAN,
+                            Manifest.permission.BLUETOOTH_CONNECT,
+                            Manifest.permission.BLUETOOTH
+                    },
+                    0
+            );
+        }
     }
 
     public void onToggleClicked(View view) {
@@ -103,63 +78,61 @@ public class MainActivity extends AppCompatActivity {
             cal.set(Calendar.MILLISECOND, 0);
 
             long trigger = cal.getTimeInMillis();
-            // If the time is in the past, add one day
             if (trigger < System.currentTimeMillis()) {
                 trigger += AlarmManager.INTERVAL_DAY;
             }
 
             Intent intent = new Intent(this, AlarmReceiver.class);
-            pendingIntent = PendingIntent.getBroadcast(this, 0, intent,
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
+            intent.putExtra("cmd", 1);
+
+            pendingIntent = PendingIntent.getBroadcast(
+                    this,
+                    0,
+                    intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
+            );
 
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.M) {
-                alarmManager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
+                alarmManager.setExactAndAllowWhileIdle(
+                        AlarmManager.RTC_WAKEUP,
+                        trigger,
+                        pendingIntent
+                );
             } else {
-                alarmManager.setExact(AlarmManager.RTC_WAKEUP, cal.getTimeInMillis(), pendingIntent);
+                alarmManager.setExact(
+                        AlarmManager.RTC_WAKEUP,
+                        trigger,
+                        pendingIntent
+                );
             }
-            Toast.makeText(this, "Alarm set", Toast.LENGTH_SHORT).show();
 
-            new Thread(() -> {
-                if (btConnected) {
-                    try {
-                        bt.send('1');
-                    } catch (IOException e) {
-                        btConnected = false;
-                    }
-                } else {
-                    runOnUiThread(() ->
-                            Toast.makeText(MainActivity.this,
-                                    "Not connected – tap Connect first",
-                                    Toast.LENGTH_SHORT).show());
-                }
-            }).start();
+            Toast.makeText(this, "Alarm set", Toast.LENGTH_SHORT).show();
 
         } else {
             if (pendingIntent != null) {
                 alarmManager.cancel(pendingIntent);
-                Toast.makeText(this, "Alarm cancelled", Toast.LENGTH_SHORT).show();
             }
 
-            // >>> SEND STOP COMMAND TO ARDUINO <<<
+            AlarmReceiver.stopRingtone();
+
+            Toast.makeText(this, "Alarm cancelled", Toast.LENGTH_SHORT).show();
+
             new Thread(() -> {
-                if (btConnected) {
-                    try {
-                        bt.send('0');
-                    } catch (IOException e) {
-                        btConnected = false;
-                    }
-                } else {
-                    runOnUiThread(() ->
-                            Toast.makeText(MainActivity.this,
-                                    "Not connected – tap Connect first",
-                                    Toast.LENGTH_SHORT).show());
+                BluetoothHelper bh = new BluetoothHelper();
+                try {
+                    bh.connect(getApplicationContext());
+                    bh.send('0');
+                    bh.disconnect();
+                } catch (IOException e) {
+                    Log.e("", "Bluetooth ошибка", e);
                 }
             }).start();
         }
-
     }
 
     public void onConnectClicked(View v) {
-        ensureBluetoothPermission();
+        Toast.makeText(this,
+                "Bluetooth подключается автоматически.",
+                Toast.LENGTH_SHORT).show();
     }
 }
