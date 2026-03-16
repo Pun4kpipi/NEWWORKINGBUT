@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "475722834736",
+    "project_id": "iacsapplication",
+    "storage_bucket": "iacsapplication.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:475722834736:android:0a8d838b91a018cc701ef5",
+        "android_client_info": {
+          "package_name": "com.example.myapplicationlplplp"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCr5iYB3sjds72H_a8OClv4NZvrhyOsEHs"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

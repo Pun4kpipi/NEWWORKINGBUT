@@ -20,6 +20,8 @@ import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.provider.Settings;
 
+import com.google.firebase.auth.FirebaseAuth;
+
 import java.io.IOException;
 import java.util.Calendar;
 
@@ -33,7 +35,7 @@ public class MainActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
 
-        // Разрешение на точные будильники (Android 12+)
+
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             AlarmManager alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
             if (!alarmManager.canScheduleExactAlarms()) {
@@ -51,7 +53,6 @@ public class MainActivity extends AppCompatActivity {
         timePicker = findViewById(R.id.timePicker);
         alarmManager = (AlarmManager) getSystemService(ALARM_SERVICE);
 
-        // Разрешения Bluetooth (Android 12+)
         if (ContextCompat.checkSelfPermission(
                 getApplicationContext(), Manifest.permission.BLUETOOTH_SCAN)
                 != PackageManager.PERMISSION_GRANTED) {
@@ -66,6 +67,12 @@ public class MainActivity extends AppCompatActivity {
                     0
             );
         }
+    }
+
+    public void logout(View view) {
+        FirebaseAuth.getInstance().signOut();
+        startActivity(new Intent (getApplicationContext(), Login.class));
+        finish();
     }
 
     public void onToggleClicked(View view) {
@@ -124,15 +131,9 @@ public class MainActivity extends AppCompatActivity {
                     bh.send('0');
                     bh.disconnect();
                 } catch (IOException e) {
-                    Log.e("", "Bluetooth ошибка", e);
+                    Log.e("", "Bluetooth error", e);
                 }
             }).start();
         }
-    }
-
-    public void onConnectClicked(View v) {
-        Toast.makeText(this,
-                "Bluetooth подключается автоматически.",
-                Toast.LENGTH_SHORT).show();
     }
 }

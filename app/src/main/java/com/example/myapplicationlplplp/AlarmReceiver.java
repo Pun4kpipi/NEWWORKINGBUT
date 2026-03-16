@@ -19,16 +19,14 @@ public class AlarmReceiver extends BroadcastReceiver {
 
     @Override
     public void onReceive(Context context, Intent intent) {
-        int command = intent.getIntExtra("cmd", 1); // 1 = включить, 0 = выключить
-        Log.d(TAG, "AlarmReceiver получил команду: " + command);
+        int command = intent.getIntExtra("cmd", 1);
+        Log.d(TAG, "AlarmReceiver got a command:  " + command);
 
-        // Сначала остановим предыдущий Ringtone (если есть)
         if (activeRingtone != null) {
             activeRingtone.stop();
             activeRingtone = null;
         }
 
-        // Отправка команды на устройство через Bluetooth
         new Thread(() -> {
             BluetoothHelper bh = new BluetoothHelper();
             try {
@@ -36,11 +34,10 @@ public class AlarmReceiver extends BroadcastReceiver {
                 bh.send(command == 1 ? '1' : '0');
                 bh.disconnect();
             } catch (IOException e) {
-                Log.e(TAG, "Bluetooth ошибка", e);
+                Log.e(TAG, "Bluetooth error", e);
             }
         }).start();
 
-        // Если команда = включить, запускаем звук и вибрацию
         if (command == 1) {
             Uri ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_ALARM);
             if (ringtoneUri == null) ringtoneUri = RingtoneManager.getDefaultUri(RingtoneManager.TYPE_NOTIFICATION);
@@ -51,11 +48,10 @@ public class AlarmReceiver extends BroadcastReceiver {
             Vibrator v = (Vibrator) context.getSystemService(Context.VIBRATOR_SERVICE);
             if (v != null) v.vibrate(2000);
 
-            Toast.makeText(context, "⏰ Wake up!", Toast.LENGTH_LONG).show();
+            Toast.makeText(context, "It's time to take your medicine", Toast.LENGTH_LONG).show();
         }
     }
 
-    // Метод для остановки Ringtone извне (MainActivity)
     public static void stopRingtone() {
         if (activeRingtone != null) {
             activeRingtone.stop();

@@ -2,10 +2,8 @@ package com.example.myapplicationlplplp;
 
 import android.annotation.SuppressLint;
 import android.bluetooth.BluetoothAdapter;
-import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
 import android.content.Context;
-import android.util.Log;
 import java.io.IOException;
 import java.io.OutputStream;
 import java.util.UUID;
@@ -28,13 +26,10 @@ public class BluetoothHelper {
             throw new IllegalStateException(e);
         }
     }
-    /**
-     * Opens an RFCOMM socket to the first bonded HC-05/HC-06 module.
-     * Call from a background thread to avoid Network-on-Main-Thread exception.
-     */
+
     public boolean connect(Context ctx) throws IOException {
         try {
-        socket.connect();          // blocks ~1 s
+        socket.connect();
         out  = socket.getOutputStream();
         return true;
     }  catch (SecurityException sec) {
@@ -42,7 +37,7 @@ public class BluetoothHelper {
         }
     }
 
-    /** Send single byte without blocking UI thread. */
+
     public void send(char c) throws IOException {
         if (out != null) {
             out.write(c);
@@ -51,7 +46,7 @@ public class BluetoothHelper {
         }
     }
 
-    /** Clean close. */
+
     public void disconnect() throws IOException {
         if (out  != null) out.close();
         if (socket != null) socket.close();
